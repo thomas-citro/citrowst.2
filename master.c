@@ -72,7 +72,7 @@ int main (int argc, char *argv[]) {
 		perror(output);
 		return 1;
 	}
-	
+	if (deallocateSharedMemory(shmid, shmp, argv[0])) return 1;
 	
         return 0;
 }
@@ -86,12 +86,29 @@ int isANumber (char *str) {
 }
 
 char *getOutputPerror (char *str) {
-	char *output;
-	strcpy(output, str);
-	strcat(output, ": Error: ");
+	char* output = strdup(str);
+	strcat(output, ": Error");
 	return output;
 }
 
-void deallocateSharedMemory() {
+int deallocateSharedMemory(int shmid, void *shmp, char *programName) {
+	int returnValue;
+	printf("Opened deallocate function\n");
+	returnValue = shmdt(shmp);
+	if (returnValue == -1) {
+		char *output = getOutputPerror(strdup(programName));
+		perror(output);
+		return 1;
+	}
+	printf("Marker 4\n");
 	
+	printf("Shared memory detached. Now deallocating/deleting from shared memory...\n");
+	returnValue = shmctl(shmid, IPC_RMID, NULL);
+	if (returnValue == -1) {
+		char *output = getOutputPerror(programName);
+		perror(output);
+		return 1;
+	}
+
+	return 0;
 }
