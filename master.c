@@ -26,6 +26,16 @@ int main (int argc, char *argv[]) {
 				printf("Error\n");
 		}
 	}
+	if (argv[optind] == NULL) {
+		usageStatement = 1;
+	} else {
+		if (!isANumber(argv[optind])) usageStatement = 1;
+		else {
+			/* TODO: Check to see if n is over 20 */
+			printf("The value you chose for 'n' is: %s\n", argv[optind]);
+			nprocs = 1; /* Temporarily */
+		}
+	}
 	if (usageStatement) {
 		printf("Usage: ./master [-h] [-t ss] [n]\n");
 		printf("Runs master program to fork 'n' slave processes.\n");
@@ -34,21 +44,8 @@ int main (int argc, char *argv[]) {
 		printf("-t ss   (integer) sets the maximum time in seconds (default 100) after which the process should terminate itself if not completed.\n");
 		printf("n       (integer) sets the number of processes to fork off (max 20).\n");
 		return 0;
-	}
-	if (argv[optind] == NULL) {
-		printf("You did not choose any value for 'n'\n");
-		/* printf("For testing purposes, setting nprocs to 1\n"); */
-		nprocs = 1;
-	} else {
-		printf("The value you chose for 'n' is: %s\n", argv[optind]);
-		if (!isANumber(argv[optind])) {
-			fprintf(stderr, "%s: Error: Invalid input\n", argv[0]);
-			return 0;
-		}
-		/* printf("For testing purposes, setting nprocs to 1\n"); */
-		nprocs = 1;
-	}
-
+	}	
+	
         return 0;
 }
 
