@@ -2,6 +2,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <string.h>
+#include <ctype.h>
+
+/* Function Prototypes */
+int isANumber(char*);
+
 int main (int argc, char *argv[]) {	
 	int ss = 100;
 	int nprocs;
