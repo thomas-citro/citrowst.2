@@ -4,6 +4,16 @@
 #include <getopt.h>
 #include <string.h>
 #include <ctype.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/types.h>
+#include "config.h"
+
+struct shmseg {
+	int cnt;
+	int complete;
+	char buf[BUF_SIZE];
+}
 
 /* Function Prototypes */
 int isANumber(char*);
@@ -51,6 +61,9 @@ int main (int argc, char *argv[]) {
 		printf("n       (integer) sets the number of processes to fork off (max 20).\n");
 		return 0;
 	}	
+	
+	int shmid;
+	shmid = smhget(SHM_KEY, sizeof(struct shmseg), IPC_CREAT);
 	
         return 0;
 }
