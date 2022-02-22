@@ -9,14 +9,9 @@
 #include <sys/types.h>
 #include "config.h"
 
-struct shmseg {
-	int cnt;
-	int complete;
-	char buf[BUF_SIZE];
-}
-
 /* Function Prototypes */
 int isANumber(char*);
+char *getOutputPerror(char*);
 
 int main (int argc, char *argv[]) {	
 	int ss = 100;
@@ -63,7 +58,21 @@ int main (int argc, char *argv[]) {
 	}	
 	
 	int shmid;
-	shmid = smhget(SHM_KEY, sizeof(struct shmseg), IPC_CREAT);
+	void *shmp;
+	shmid = shmget(SHM_KEY, SHM_SIZE, SHM_PERM|IPC_CREAT);
+	if (shmid == -1) {
+		char *output = getOutputPerror(argv[0]);
+		perror(output);
+		return 1;
+	}
+	
+	shmp = shmat(shmid, NULL, 0);
+	if (shmp == (void *) -1) {
+		char *output = getOutputPerror(argv[0]);
+		perror(output);
+		return 1;
+	}
+	
 	
         return 0;
 }
@@ -74,4 +83,15 @@ int isANumber (char *str) {
 		if (!isdigit(str[i])) return 0;
 	}
 	return 1;
+}
+
+char *getOutputPerror (char *str) {
+	char *output;
+	strcpy(output, str);
+	strcat(output, ": Error: ");
+	return output;
+}
+
+void deallocateSharedMemory() {
+	
 }
