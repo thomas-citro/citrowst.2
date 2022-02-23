@@ -21,6 +21,7 @@ int shmAllocated;
 int shmid;
 void *shmp;
 char *programName;
+int activeProcesses;
 
 
 /* Function Prototypes */
@@ -28,6 +29,7 @@ int isANumber(char*);
 char *getOutputPerror();
 int deallocateSharedMemory();
 void ctrlCHandler(int);
+void childTermHandler(int);
 static void myhandler(int);
 static int setupinterrupt(void);
 static int setupitimer(void);
@@ -35,8 +37,10 @@ static int setupitimer(void);
 
 int main (int argc, char *argv[]) {
 	signal(SIGINT, ctrlCHandler);
+	signal(SIGCHLD, childTermHandler);
 	programName = argv[0];
 	shmAllocated = 0;
+	activeProcesses = 0;
 	int ss = 100;
 	nprocs = 0;
 	
@@ -99,7 +103,9 @@ int main (int argc, char *argv[]) {
 	int status = 0;
 	if ((childpid = fork())) {
 		/* parent process */
-		printf("Parent -> Created child\n");
+		printf("Parent (PID %ld) -> Created child\n", (long)getpid());
+		activeProcesses++;
+		children[0] = childpid;
 		if (setupinterrupt() == -1) {
 			char *output = getOutputPerror();
 			perror(output);
@@ -110,8 +116,9 @@ int main (int argc, char *argv[]) {
 			perror(output);
 			return 1;
 		}
-
-		wait(&status);
+		
+		for( ; ; );
+		/*wait(&status);*/
 		printf("Parent -> All children have been terminated.\n");
 	} else if (childpid < 0) {
 		/* parent process with error */
@@ -119,9 +126,9 @@ int main (int argc, char *argv[]) {
 	} else {
 		/* child process */
 		char *args[] = {"./slave", "1", (char*)0};
-		printf("Child process (PID: %ld) in master program. About to execv to slave...\n", (long)getpid());
+		printf("Child process (PID: %ld) in master program. About to execvp to slave...\n", (long)getpid());
 		execvp("./slave", args);
-		perror("execv");
+		perror("execvp");
 	}
 
 	if (deallocateSharedMemory()) return 1;
@@ -178,7 +185,7 @@ void ctrlCHandler (int dummy) {
 
 static int setupitimer(void) {
 	struct itimerval value;
-	value.it_interval.tv_sec = 2;
+	value.it_interval.tv_sec = 10;
 	value.it_interval.tv_usec = 0;
 	value.it_value = value.it_interval;
 	return (setitimer(ITIMER_PROF, &value, NULL));
@@ -192,10 +199,13 @@ static int setupinterrupt(void) {
 }
 
 static void myhandler(int s) {
-	fprintf(stdout, "Inside my timer handler\n");
-	char aster = '*';
-	int errsave;
-	errsave = errno;
-	write(STDERR_FILENO, &aster, 1);
-	errno = errsave;
+	ctrlCHandler(1);
+}
+
+void childTermHandler(int s) {
+	activeProcesses--;
+	if (activeProcesses < 1) {
+		printf("All children have terminated. Now exiting program...\n");
+		ctrlCHandler(1);
+	}		
 }

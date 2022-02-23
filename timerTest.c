@@ -1,8 +1,11 @@
+#include <stdlib.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <time.h>
+
 static void myhandler(int s) {
 	char aster = '*';
 	int errsave;
@@ -20,7 +23,7 @@ static int setupinterrupt(void) {
 
 static int setupitimer(void) {
 	struct itimerval value;
-	value.it_interval.tv_sec = 2;
+	value.it_interval.tv_sec = 1;
 	value.it_interval.tv_usec = 0;
 	value.it_value = value.it_interval;
 	return (setitimer(ITIMER_PROF, &value, NULL));
@@ -35,7 +38,17 @@ int main(void) {
 		perror("Failed to set up the ITIMER_PROF interval timer");
 		return 1;
 	}
-	sleep(10);
-	printf("Been 10 seconds - ending program...");
+	/*sleep(5);*/
+	/*printf("Been 5 seconds - ending program...\n");*/
+	/*exit(0);*/
+	struct timespec remaining, request = {3, 10};
+	printf("Sleeping...\n");
+	int response = nanosleep(&request, &remaining);
+	if (response == 0) {
+		printf("nanosleep was successfully executed\n");
+	} else {
+		printf("nanosleep execution failed\n");
+	}
+	printf("Been 5 seconds - ending program...\n");
 	exit(0);
 }
