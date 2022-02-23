@@ -8,17 +8,33 @@
 #include <sys/shm.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
 #include "config.h"
+
+
+/* Global variables */
+pid_t children[MAX_PROCS];
+int nprocs;
+int shmAllocated;
+int shmid;
+void *shmp;
+char *programName;
+
+
 
 /* Function Prototypes */
 int isANumber(char*);
-char *getOutputPerror(char*);
-int deallocateSharedMemory(int, void*, char*);
+char *getOutputPerror();
+int deallocateSharedMemory();
+void ctrlCHandler(int);
 
 
-int main (int argc, char *argv[]) {	
+int main (int argc, char *argv[]) {
+	signal(SIGINT, ctrlCHandler);
+	programName = argv[0];
+	shmAllocated = 0;
 	int ss = 100;
-	int nprocs;
+	nprocs = 0;
 	
 	int usageStatement = 0;
 	int option;
@@ -60,18 +76,17 @@ int main (int argc, char *argv[]) {
 		return 0;
 	}	
 	
-	int shmid;
-	void *shmp;
+	shmAllocated = 1;
 	shmid = shmget(SHM_KEY, SHM_SIZE, SHM_PERM|IPC_CREAT);
 	if (shmid == -1) {
-		char *output = getOutputPerror(argv[0]);
+		char *output = getOutputPerror();
 		perror(output);
 		return 1;
 	}
 	
 	shmp = shmat(shmid, NULL, 0);
 	if (shmp == (void *) -1) {
-		char *output = getOutputPerror(argv[0]);
+		char *output = getOutputPerror();
 		perror(output);
 		return 1;
 	}
@@ -94,7 +109,7 @@ int main (int argc, char *argv[]) {
 		perror("execv");
 	}
 
-	if (deallocateSharedMemory(shmid, shmp, argv[0])) return 1;
+	if (deallocateSharedMemory()) return 1;
 	
         return 0;
 }
@@ -107,18 +122,18 @@ int isANumber (char *str) {
 	return 1;
 }
 
-char *getOutputPerror (char *str) {
-	char* output = strdup(str);
+char *getOutputPerror () {
+	char* output = strdup(programName);
 	strcat(output, ": Error");
 	return output;
 }
 
-int deallocateSharedMemory(int shmid, void *shmp, char *programName) {
+int deallocateSharedMemory() {
 	int returnValue;
 	printf("Opened deallocate function\n");
 	returnValue = shmdt(shmp);
 	if (returnValue == -1) {
-		char *output = getOutputPerror(strdup(programName));
+		char *output = getOutputPerror();
 		perror(output);
 		return 1;
 	}
@@ -126,10 +141,22 @@ int deallocateSharedMemory(int shmid, void *shmp, char *programName) {
 	printf("Shared memory detached. Now deallocating/deleting from shared memory...\n");
 	returnValue = shmctl(shmid, IPC_RMID, NULL);
 	if (returnValue == -1) {
-		char *output = getOutputPerror(programName);
+		char *output = getOutputPerror();
 		perror(output);
 		return 1;
 	}
 
 	return 0;
+}
+
+void ctrlCHandler (int dummy) {
+	int i;
+	for (i = 0; i < nprocs; i++) {
+		if ((kill(children[i], SIGKILL)) == -1) {
+			char *output = getOutputPerror();
+			perror(output);
+		}
+	}
+	if (shmAllocated) deallocateSharedMemory();
+	exit(0);
 }
