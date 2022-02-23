@@ -28,15 +28,15 @@ int activeProcesses;
 int isANumber(char*);
 char *getOutputPerror();
 int deallocateSharedMemory();
-void ctrlCHandler(int);
+void endProgramHandler(int);
 void childTermHandler(int);
-static void myhandler(int);
+static void timeoutHandler(int);
 static int setupinterrupt(void);
 static int setupitimer(void);
 
 
 int main (int argc, char *argv[]) {
-	signal(SIGINT, ctrlCHandler);
+	signal(SIGINT, endProgramHandler);
 	signal(SIGCHLD, childTermHandler);
 	programName = argv[0];
 	shmAllocated = 0;
@@ -102,7 +102,7 @@ int main (int argc, char *argv[]) {
 	pid_t childpid = 0;
 	int status = 0;
 	if ((childpid = fork())) {
-		/* parent process */
+		/* Parent process */
 		printf("Parent (PID %ld) -> Created child\n", (long)getpid());
 		activeProcesses++;
 		children[0] = childpid;
@@ -116,22 +116,20 @@ int main (int argc, char *argv[]) {
 			perror(output);
 			return 1;
 		}
-		
 		for( ; ; );
-		/*wait(&status);*/
-		printf("Parent -> All children have been terminated.\n");
 	} else if (childpid < 0) {
-		/* parent process with error */
-		
+		char *output = getOutputPerror();
+		perror(output);
+		return 1;
 	} else {
-		/* child process */
+		/* Child process */
 		char *args[] = {"./slave", "1", (char*)0};
-		printf("Child process (PID: %ld) in master program. About to execvp to slave...\n", (long)getpid());
 		execvp("./slave", args);
-		perror("execvp");
+		
+		char *output = getOutputPerror();
+		perror(output);
+		return 1;
 	}
-
-	if (deallocateSharedMemory()) return 1;
 	
         return 0;
 }
@@ -152,26 +150,25 @@ char *getOutputPerror () {
 
 int deallocateSharedMemory() {
 	int returnValue;
-	printf("Opened deallocate function\n");
+	printf("Deallocating shared memory...\n");
 	returnValue = shmdt(shmp);
 	if (returnValue == -1) {
 		char *output = getOutputPerror();
 		perror(output);
-		return 1;
+		exit(1);
 	}
 	
-	printf("Shared memory detached. Now deallocating/deleting from shared memory...\n");
 	returnValue = shmctl(shmid, IPC_RMID, NULL);
 	if (returnValue == -1) {
 		char *output = getOutputPerror();
 		perror(output);
-		return 1;
+		exit(1);
 	}
 
 	return 0;
 }
 
-void ctrlCHandler (int dummy) {
+void endProgramHandler (int s) {
 	int i;
 	for (i = 0; i < nprocs; i++) {
 		if ((kill(children[i], SIGKILL)) == -1) {
@@ -193,19 +190,19 @@ static int setupitimer(void) {
 
 static int setupinterrupt(void) {
 	struct sigaction act;
-	act.sa_handler = myhandler;
+	act.sa_handler = timeoutHandler;
 	act.sa_flags = 0;
 	return (sigemptyset(&act.sa_mask) || sigaction(SIGPROF, &act, NULL));
 }
 
-static void myhandler(int s) {
-	ctrlCHandler(1);
+static void timeoutHandler(int s) {
+	endProgramHandler(1);
 }
 
 void childTermHandler(int s) {
 	activeProcesses--;
 	if (activeProcesses < 1) {
 		printf("All children have terminated. Now exiting program...\n");
-		ctrlCHandler(1);
+		endProgramHandler(1);
 	}		
 }
