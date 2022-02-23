@@ -6,7 +6,8 @@
 #include <time.h>
 
 int main (int argc, char *argv[]) {
-	
+	time_t rawtime;
+	struct tm * timeinfo;
 	int randLower = 1;
 	int randUpper = 5;
 	int procNumber = atoi(argv[1]) + 1;
@@ -30,14 +31,12 @@ int main (int argc, char *argv[]) {
 	srand(time(0) * procNumber); /* Seed random number generator */
 	
 	int randomNum = (rand() % (randUpper - randLower + 1)) + randLower; /* Chooses random number from randLower to randUpper */
-	int rand2 = (rand() % (randUpper - randLower + 1)) + randLower;
-	int rand3 = (rand() % (randUpper - randLower + 1)) + randLower;
-	int rand4 = (rand() % (randUpper - randLower + 1)) + randLower;
-	int rand5 = (rand() % (randUpper - randLower + 1)) + randLower;
-	int rand6 = (rand() % (randUpper - randLower + 1)) + randLower;
 	
-	printf("Slave (w/ proc num: %d) has sleep values: %d, %d, %d, %d, %d, %d\n", procNumber, randomNum, rand2, rand3, rand4, rand5, rand6);
 	sleep(randomNum);
+	
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+	printf("Slave (proc num: %d). System time (hh:mm:ss) -> %d:%d:%d\n", procNumber, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec); 
 	
         return 0;
 }
