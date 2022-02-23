@@ -7,11 +7,14 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include "config.h"
 
 /* Function Prototypes */
 int isANumber(char*);
 char *getOutputPerror(char*);
+int deallocateSharedMemory(int, void*, char*);
+
 
 int main (int argc, char *argv[]) {	
 	int ss = 100;
@@ -72,6 +75,25 @@ int main (int argc, char *argv[]) {
 		perror(output);
 		return 1;
 	}
+	
+	pid_t childpid = 0;
+	int status = 0;
+	if ((childpid = fork())) {
+		/* parent process */
+		printf("Parent -> Created child\n");
+		wait(&status);
+		printf("Parent -> All children have been terminated.\n");
+	} else if (childpid < 0) {
+		/* parent process with error */
+		
+	} else {
+		/* child process */
+		char *args[] = {"./slave", "1", (char*)0};
+		printf("Child process (PID: %ld) in master program. About to execv to slave...\n", (long)getpid());
+		execvp("./slave", args);
+		perror("execv");
+	}
+
 	if (deallocateSharedMemory(shmid, shmp, argv[0])) return 1;
 	
         return 0;
@@ -100,7 +122,6 @@ int deallocateSharedMemory(int shmid, void *shmp, char *programName) {
 		perror(output);
 		return 1;
 	}
-	printf("Marker 4\n");
 	
 	printf("Shared memory detached. Now deallocating/deleting from shared memory...\n");
 	returnValue = shmctl(shmid, IPC_RMID, NULL);
