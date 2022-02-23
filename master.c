@@ -4,11 +4,13 @@
 #include <getopt.h>
 #include <string.h>
 #include <ctype.h>
+#include <signal.h>
+#include <errno.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <signal.h>
+#include <sys/time.h>
 #include "config.h"
 
 
@@ -21,12 +23,14 @@ void *shmp;
 char *programName;
 
 
-
 /* Function Prototypes */
 int isANumber(char*);
 char *getOutputPerror();
 int deallocateSharedMemory();
 void ctrlCHandler(int);
+static void myhandler(int);
+static int setupinterrupt(void);
+static int setupitimer(void);
 
 
 int main (int argc, char *argv[]) {
@@ -96,6 +100,17 @@ int main (int argc, char *argv[]) {
 	if ((childpid = fork())) {
 		/* parent process */
 		printf("Parent -> Created child\n");
+		if (setupinterrupt() == -1) {
+			char *output = getOutputPerror();
+			perror(output);
+			return 1;
+		}
+		if (setupitimer() == -1) {
+			char *output = getOutputPerror();
+			perror(output);
+			return 1;
+		}
+
 		wait(&status);
 		printf("Parent -> All children have been terminated.\n");
 	} else if (childpid < 0) {
@@ -159,4 +174,28 @@ void ctrlCHandler (int dummy) {
 	}
 	if (shmAllocated) deallocateSharedMemory();
 	exit(0);
+}
+
+static int setupitimer(void) {
+	struct itimerval value;
+	value.it_interval.tv_sec = 2;
+	value.it_interval.tv_usec = 0;
+	value.it_value = value.it_interval;
+	return (setitimer(ITIMER_PROF, &value, NULL));
+}
+
+static int setupinterrupt(void) {
+	struct sigaction act;
+	act.sa_handler = myhandler;
+	act.sa_flags = 0;
+	return (sigemptyset(&act.sa_mask) || sigaction(SIGPROF, &act, NULL));
+}
+
+static void myhandler(int s) {
+	fprintf(stdout, "Inside my timer handler\n");
+	char aster = '*';
+	int errsave;
+	errsave = errno;
+	write(STDERR_FILENO, &aster, 1);
+	errno = errsave;
 }
