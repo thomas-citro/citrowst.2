@@ -35,6 +35,11 @@ static void timeoutHandler(int);
 static int setupinterrupt(void);
 static int setupitimer(void);
 
+struct shmseg {
+	int resource;
+	int tickets[MAX_PROCS];
+	int choosing[MAX_PROCS];
+};
 
 int main (int argc, char *argv[]) {
 	signal(SIGINT, endProgramHandler);
