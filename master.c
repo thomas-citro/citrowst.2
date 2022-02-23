@@ -17,6 +17,7 @@
 /* Global variables */
 pid_t children[MAX_PROCS];
 int nprocs;
+int ss;
 int shmAllocated;
 int shmid;
 void *shmp;
@@ -41,7 +42,7 @@ int main (int argc, char *argv[]) {
 	programName = argv[0];
 	shmAllocated = 0;
 	activeProcesses = 0;
-	int ss = 100;
+	ss = 10;
 	nprocs = 0;
 	
 	int usageStatement = 0;
@@ -54,9 +55,9 @@ int main (int argc, char *argv[]) {
 			case 't' :
 				if (!isANumber(optarg)) {
 					usageStatement = 1;
-					break;
+				} else if (atoi(optarg) < 1) {
+					usageStatement = 1;
 				} else {
-					printf("Hello, you chose 't' as parameter with value: %s\n", optarg);
 					ss = atoi(optarg);
 				}
 				break;
@@ -69,9 +70,14 @@ int main (int argc, char *argv[]) {
 	} else {
 		if (!isANumber(argv[optind])) usageStatement = 1;
 		else {
-			/* TODO: Check to see if n is over 20 */
-			printf("The value you chose for 'n' is: %s\n", argv[optind]);
-			nprocs = 1; /* Temporarily */
+			if (atoi(argv[optind]) > MAX_PROCS) {
+				printf("Warning: Maximum value for 'n' is 20. Setting number of processes to 20.\n");
+				nprocs = 20;
+			} else if (atoi(argv[optind]) < 1) {
+				usageStatement = 1;
+			} else {
+				nprocs = atoi(argv[optind]);
+			}
 		}
 	}
 	if (usageStatement) {
@@ -100,36 +106,41 @@ int main (int argc, char *argv[]) {
 	}
 	
 	pid_t childpid = 0;
-	int status = 0;
-	if ((childpid = fork())) {
-		/* Parent process */
-		printf("Parent (PID %ld) -> Created child\n", (long)getpid());
-		activeProcesses++;
-		children[0] = childpid;
-		if (setupinterrupt() == -1) {
+	int i;
+	for (i = 0; i < nprocs; i++) {
+		if ((childpid = fork()) == -1) {
 			char *output = getOutputPerror();
 			perror(output);
 			return 1;
-		}
-		if (setupitimer() == -1) {
+		} else if (childpid == 0) {
+			/* Child process */
+			char intToString[10];
+			sprintf(intToString, "%d", i);
+			char *args[] = {"./slave", intToString, (char*)0};
+			execvp("./slave", args);
+			
 			char *output = getOutputPerror();
 			perror(output);
 			return 1;
+		} else {
+			/* Parent process */
+			printf("Parent (PID %ld) -> Created child\n", (long)getpid());
+			activeProcesses++;
+			children[i] = childpid;
 		}
-		for( ; ; );
-	} else if (childpid < 0) {
-		char *output = getOutputPerror();
-		perror(output);
-		return 1;
-	} else {
-		/* Child process */
-		char *args[] = {"./slave", "1", (char*)0};
-		execvp("./slave", args);
-		
+	}
+	/* Parent process start timer */
+	if (setupinterrupt() == -1) {
 		char *output = getOutputPerror();
 		perror(output);
 		return 1;
 	}
+	if (setupitimer() == -1) {
+		char *output = getOutputPerror();
+		perror(output);
+		return 1;
+	}
+	for( ; ; );
 	
         return 0;
 }
@@ -182,7 +193,7 @@ void endProgramHandler (int s) {
 
 static int setupitimer(void) {
 	struct itimerval value;
-	value.it_interval.tv_sec = 10;
+	value.it_interval.tv_sec = ss;
 	value.it_interval.tv_usec = 0;
 	value.it_value = value.it_interval;
 	return (setitimer(ITIMER_PROF, &value, NULL));
