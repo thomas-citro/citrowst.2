@@ -20,7 +20,6 @@ int nprocs;
 int ss;
 int shmAllocated;
 int shmid;
-void *shmp;
 char *programName;
 int activeProcesses;
 
@@ -34,6 +33,7 @@ void childTermHandler(int);
 static void timeoutHandler(int);
 static int setupinterrupt(void);
 static int setupitimer(void);
+struct shmseg *shmp;
 
 struct shmseg {
 	int resource;
@@ -50,6 +50,7 @@ int main (int argc, char *argv[]) {
 	ss = 10;
 	nprocs = 0;
 	
+	int i;
 	int usageStatement = 0;
 	int option;
 	while ((option = getopt(argc, argv, "ht:")) != -1) {
@@ -96,13 +97,16 @@ int main (int argc, char *argv[]) {
 	}	
 	
 	shmAllocated = 1;
-	shmid = shmget(SHM_KEY, SHM_SIZE, SHM_PERM|IPC_CREAT);
+	
+	/* Allocate shared memory */
+	shmid = shmget(SHM_KEY, sizeof(struct shmseg), SHM_PERM|IPC_CREAT);
 	if (shmid == -1) {
 		char *output = getOutputPerror();
 		perror(output);
 		return 1;
 	}
 	
+	/* Attach shared memory */
 	shmp = shmat(shmid, NULL, 0);
 	if (shmp == (void *) -1) {
 		char *output = getOutputPerror();
@@ -110,8 +114,15 @@ int main (int argc, char *argv[]) {
 		return 1;
 	}
 	
+	/* Initialize struct for shared memory */
+	shmp->resource = 0;
+        for (i = 0; i < MAX_PROCS; i++) {
+                shmp->tickets[i] = 0;
+                shmp->choosing[i] = 0;
+        }
+	
+	/* Fork off child processes */
 	pid_t childpid = 0;
-	int i;
 	for (i = 0; i < nprocs; i++) {
 		if ((childpid = fork()) == -1) {
 			char *output = getOutputPerror();
@@ -119,9 +130,12 @@ int main (int argc, char *argv[]) {
 			return 1;
 		} else if (childpid == 0) {
 			/* Child process */
-			char intToString[10];
-			sprintf(intToString, "%d", i);
-			char *args[] = {"./slave", intToString, (char*)0};
+			printf("Child marker 1. shmid == %d, shmp == %p\n", shmid, shmp);
+			char strProcNum[10];
+			sprintf(strProcNum, "%d", i);
+			char strShmid[100];
+			sprintf(strShmid, "%d", shmid);
+			char *args[] = {"./slave", strProcNum, strShmid, (char*)0};
 			execvp("./slave", args);
 			
 			char *output = getOutputPerror();
@@ -212,6 +226,7 @@ static int setupinterrupt(void) {
 }
 
 static void timeoutHandler(int s) {
+	printf("Out of time.\n");
 	endProgramHandler(1);
 }
 
