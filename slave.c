@@ -121,7 +121,7 @@ void use_resource(int procNumber) {
 	}
 	shmp->resource = procNumber;
 	int realProcNumber = procNumber + 1;
-	printf("%d using resource...\n", realProcNumber);
+	printf("Process %d just wrote to 'cstest' file...\n", realProcNumber);
 	
 	/* Write to 'cstest' file */
 	time_t rawtime;
