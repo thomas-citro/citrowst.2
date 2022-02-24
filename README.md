@@ -13,3 +13,7 @@ n           (integer value) Sets the number of processes to fork off (max 20).
   
 Version Control  
 Github repository: https://github.com/thomas-citro/citrowst.2  
+  
+  
+Other Notes  
+- Running "make clean" will remove the cstest file, log files, object files, and executables.  
