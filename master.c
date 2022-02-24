@@ -233,7 +233,7 @@ static int setupitimer(void) {
 	value.it_interval.tv_sec = ss;
 	value.it_interval.tv_usec = 0;
 	value.it_value = value.it_interval;
-	return (setitimer(ITIMER_PROF, &value, NULL));
+	return (setitimer(ITIMER_REAL, &value, NULL));
 }
 
 /* For timer */
@@ -241,7 +241,7 @@ static int setupinterrupt(void) {
 	struct sigaction act;
 	act.sa_handler = timeoutHandler;
 	act.sa_flags = 0;
-	return (sigemptyset(&act.sa_mask) || sigaction(SIGPROF, &act, NULL));
+	return (sigemptyset(&act.sa_mask) || sigaction(SIGALRM, &act, NULL));
 }
 
 /* Detected ctrl+c, so we can end the program */
