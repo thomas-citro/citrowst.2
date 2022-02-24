@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/time.h>
+#include <time.h>
 #include "config.h"
 
 
@@ -30,6 +31,8 @@ char *getOutputPerror();
 int deallocateSharedMemory();
 void endProgramHandler(int);
 void childTermHandler(int);
+void ctrlCHandler(int);
+void logTermination(char*);
 static void timeoutHandler(int);
 static int setupinterrupt(void);
 static int setupitimer(void);
@@ -42,12 +45,12 @@ struct shmseg {
 };
 
 int main (int argc, char *argv[]) {
-	signal(SIGINT, endProgramHandler);
+	signal(SIGINT, ctrlCHandler);
 	signal(SIGCHLD, childTermHandler);
 	programName = argv[0];
 	shmAllocated = 0;
 	activeProcesses = 0;
-	ss = 30;
+	ss = 100;
 	nprocs = 0;
 	
 	int i;
@@ -130,7 +133,6 @@ int main (int argc, char *argv[]) {
 			return 1;
 		} else if (childpid == 0) {
 			/* Child process */
-			printf("Child marker 1. shmid == %d, shmp == %p\n", shmid, shmp);
 			char strProcNum[10];
 			sprintf(strProcNum, "%d", i);
 			char strShmid[100];
@@ -143,7 +145,6 @@ int main (int argc, char *argv[]) {
 			return 1;
 		} else {
 			/* Parent process */
-			printf("Parent (PID %ld) -> Created child\n", (long)getpid());
 			activeProcesses++;
 			children[i] = childpid;
 		}
@@ -225,8 +226,14 @@ static int setupinterrupt(void) {
 	return (sigemptyset(&act.sa_mask) || sigaction(SIGPROF, &act, NULL));
 }
 
+void ctrlCHandler(int s) {
+	logTermination("ctrl+C");
+	endProgramHandler(1);
+}
+
 static void timeoutHandler(int s) {
-	printf("Out of time.\n");
+	printf("Timer ended. Now exiting program...\n");
+	logTermination("timeout");
 	endProgramHandler(1);
 }
 
@@ -234,6 +241,20 @@ void childTermHandler(int s) {
 	activeProcesses--;
 	if (activeProcesses < 1) {
 		printf("All children have terminated. Now exiting program...\n");
+		logTermination("all children terminated");
 		endProgramHandler(1);
 	}		
 }
+
+void logTermination(char *method) {
+	time_t rawtime;
+	struct tm * timeinfo;
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+	FILE *fptr = fopen("cstest", "a");
+	if (fptr == NULL) {
+		printf("Error: unable to open 'cstest' file.\n");
+		exit(0);
+	}
+	fprintf(fptr, "%d:%d:%d Program ended. Termination method: %s\n", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, method);
+}	

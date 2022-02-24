@@ -25,24 +25,30 @@ struct shmseg *shmp;
 
 
 int main (int argc, char *argv[]) {
-	time_t rawtime;
-	struct tm * timeinfo;
+	/* Parse arguments */
+	int procNumber = atoi(argv[1]) + 1;
+	int shmid = atoi(argv[2]);
+	
+	/* Variables/startup functions for random number generator */
+	int randomNum;
 	int randLower = 1;
 	int randUpper = 5;
-	int procNumber = atoi(argv[1]) + 1;
-	char intToString[3];
-	sprintf(intToString, "%d", procNumber);
-	char logfile[10] = "logfile.";
-	strcat(logfile, intToString);
 	srand(time(0) * procNumber); /* Seed the random number generator */
-	int randomNum;
-	int shmid = atoi(argv[2]);
+	
+	/* Attach shared memory to child process */
 	shmp = shmat(shmid, NULL, 0);
 	if (shmp == (void *) -1) {
 		char *output = getOutputPerror(argv[0]);
 		perror(output);
 		exit(1);
 	}
+	
+	/* Set logfile name */
+	char intToString[3];
+	sprintf(intToString, "%d", procNumber);
+	char logfile[10] = "logfile.";
+	strcat(logfile, intToString);
+	
 	
 	/* Bakery's algorithm implementation */
 	int i = 0;
@@ -53,6 +59,7 @@ int main (int argc, char *argv[]) {
 		randomNum = (rand() % (randUpper - randLower + 1)) + randLower; /* Random number from randLower to randUpper */
 		sleep(randomNum);
 		use_resource(procNumber - 1);
+		logMessage("Wrote in 'cstest' file by process number: ", procNumber, logfile);
 		randomNum = (rand() % (randUpper - randLower + 1)) + randLower; /* Random number from randLower to randUpper */
 		sleep(randomNum);
 		logMessage("Exited critical section by process number: ", procNumber, logfile);
@@ -113,8 +120,10 @@ void use_resource(int procNumber) {
 		printf("Resource was acquired by %d, but is still in-use by %d!\n", procNumber, shmp->resource);
 	}
 	shmp->resource = procNumber;
-	printf("%d using resource...\n", procNumber);
+	int realProcNumber = procNumber + 1;
+	printf("%d using resource...\n", realProcNumber);
 	
+	/* Write to 'cstest' file */
 	time_t rawtime;
 	struct tm * timeinfo;
 	FILE *fptr = fopen("cstest", "a");
@@ -124,7 +133,7 @@ void use_resource(int procNumber) {
 	}
 	time(&rawtime);
 	timeinfo = localtime(&rawtime);
-	fprintf(fptr, "%d:%d:%d Queue %d File modified by process number %d\n", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, shmp->tickets[procNumber], procNumber);
+	fprintf(fptr, "%d:%d:%d Queue %d File modified by process number %d\n", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, shmp->tickets[procNumber], realProcNumber);
 	fclose(fptr);
 	
 	MEMBAR;

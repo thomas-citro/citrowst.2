@@ -17,3 +17,4 @@ clean:
 	rm -f $(TAR)
 	rm -f $(EXEC)
 	rm -f $(LOGS)
+	rm -f cstest
