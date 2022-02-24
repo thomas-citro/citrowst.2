@@ -1,3 +1,5 @@
+/* Author: Thomas Citrowske - Date: 2/24/22 */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -229,7 +231,6 @@ void endProgramHandler (int s, int killChildren) {
 /* For timer */
 static int setupitimer(void) {
 	struct itimerval value;
-	printf("ss == %d\n", ss);
 	value.it_interval.tv_sec = ss;
 	value.it_interval.tv_usec = 0;
 	value.it_value = value.it_interval;
