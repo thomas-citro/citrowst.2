@@ -47,7 +47,7 @@ int main (int argc, char *argv[]) {
 	programName = argv[0];
 	shmAllocated = 0;
 	activeProcesses = 0;
-	ss = 10;
+	ss = 30;
 	nprocs = 0;
 	
 	int i;
